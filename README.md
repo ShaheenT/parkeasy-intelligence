@@ -36,9 +36,10 @@ Set `DATABASE_URL` in `.env` to:
 postgresql://postgres:postgres@localhost:5433/parkeasy_intelligence
 ```
 
-Apply the schema and start the API:
+Build the service, apply versioned migrations, and start the API:
 
 ```bash
+npm run build
 npm run db:migrate
 npm run dev
 ```
@@ -98,6 +99,7 @@ curl -X POST http://localhost:8080/v1/events \
   -H "content-type: application/json" \
   -H "x-api-key: $PEI_API_KEY" \
   -d '{
+    "eventId": "2d3b8b2a-7b44-4e5a-9a25-5b4c0e3f8a11",
     "eventType": "search_performed",
     "properties": {"surface": "marketplace"}
   }'
@@ -123,7 +125,7 @@ npm test
 npm run build
 ```
 
-The health and schema tests do not require a running PostgreSQL instance. Add database-backed integration tests against an ephemeral PostgreSQL service in CI before production release.
+The health and schema tests run without PostgreSQL. Database integration tests run when TEST_DATABASE_URL is set; CI provisions PostgreSQL 16, applies migrations, and executes the full test suite.
 
 ## Deployment
 
@@ -135,6 +137,10 @@ Deploy as a long-running Node.js service or container. Configure:
 - `INVENTORY_FRESHNESS_MINUTES` based on the snapshot delivery SLA
 
 Run `npm run db:migrate` as a controlled release step before deploying code that requires the new schema. Keep database credentials and API keys in the hosting provider's secret manager. Do not expose the API key in browser code; call this API from a ParkEasy server-side adapter.
+
+## Production deployment gates
+
+This repository now includes versioned, checksum-verified migrations, PostgreSQL-backed CI, and a multi-stage Docker image. A production release still requires a managed PostgreSQL instance, backup/PITR configuration, TLS, secret provisioning, monitoring/alerting, a data retention policy, load testing, and a verified staging integration. The local Compose credentials are for local development only.
 
 ## Production hardening still required
 
