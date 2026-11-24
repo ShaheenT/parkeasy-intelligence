@@ -1,0 +1,55 @@
+openapi: 3.1.0
+info:
+  title: ParkEasy Intelligence API
+  version: 1.0.0
+  description: Independent mobility intelligence API. Recommendations are advisory and must be revalidated before booking.
+servers:
+  - url: http://localhost:8080
+security:
+  - ApiKeyAuth: []
+paths:
+  /health/live:
+    get:
+      security: []
+      summary: Liveness probe
+      responses:
+        "200": { description: Service process is alive }
+  /health/ready:
+    get:
+      security: []
+      summary: Readiness probe
+      responses:
+        "200": { description: Database dependency is ready }
+        "503": { description: Dependency unavailable }
+  /v1/events:
+    post:
+      summary: Ingest a marketplace event
+      responses:
+        "202": { description: Event accepted }
+        "400": { description: Invalid event }
+        "401": { description: Unauthorized }
+  /v1/parking/spaces/{externalId}:
+    put:
+      summary: Upsert a read-only parking inventory snapshot
+      parameters:
+        - in: path
+          name: externalId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Snapshot accepted }
+        "400": { description: Invalid snapshot }
+        "401": { description: Unauthorized }
+  /v1/intelligence/parking/recommendations:
+    post:
+      summary: Rank fresh parking snapshots near a destination
+      responses:
+        "200": { description: Recommendations returned }
+        "400": { description: Invalid request }
+        "401": { description: Unauthorized }
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
