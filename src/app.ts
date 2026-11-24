@@ -49,15 +49,16 @@ export function buildApp() {
       });
     }
     const event = parsed.data;
-    const id = event.eventId ?? randomUUID();
-    await pool.query(
+    const id = event.eventId;
+    const inserted = await pool.query(
       `INSERT INTO mobility_events (id, event_type, occurred_at, subject_ref, properties)
        VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id`,
       [id, event.eventType, event.occurredAt ? new Date(event.occurredAt) : new Date(),
         event.subjectRef ?? null, JSON.stringify(event.properties)]
     );
-    return reply.code(202).send({ accepted: true, eventId: id });
+    return reply.code(202).send({ accepted: true, duplicate: inserted.rowCount === 0, eventId: id });
   });
 
   app.put('/v1/parking/spaces/:externalId', { preHandler: requireApiKey }, async (request, reply) => {
@@ -69,21 +70,27 @@ export function buildApp() {
       });
     }
     const space = parsed.data;
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO parking_space_snapshots
          (external_id, latitude, longitude, price_per_hour_zar, currency, status,
-          available_from, available_until, attributes, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+          available_from, available_until, attributes, updated_at, source_updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),$10)
        ON CONFLICT (external_id) DO UPDATE SET
          latitude=EXCLUDED.latitude, longitude=EXCLUDED.longitude,
          price_per_hour_zar=EXCLUDED.price_per_hour_zar, currency=EXCLUDED.currency,
          status=EXCLUDED.status, available_from=EXCLUDED.available_from,
          available_until=EXCLUDED.available_until, attributes=EXCLUDED.attributes,
-         updated_at=NOW()`,
+         updated_at=NOW(), source_updated_at=EXCLUDED.source_updated_at
+       WHERE EXCLUDED.source_updated_at >= parking_space_snapshots.source_updated_at
+       RETURNING external_id, source_updated_at`,
       [space.externalId, space.latitude, space.longitude, space.pricePerHourZar,
         space.currency, space.status, space.availableFrom ? new Date(space.availableFrom) : null,
-        space.availableUntil ? new Date(space.availableUntil) : null, JSON.stringify(space.attributes)]
+        space.availableUntil ? new Date(space.availableUntil) : null, JSON.stringify(space.attributes),
+        space.observedAt ? new Date(space.observedAt) : new Date()]
     );
+    if (result.rowCount === 0) {
+      return reply.code(409).send({ error: { code: 'STALE_SNAPSHOT', message: 'A newer inventory snapshot is already stored.' } });
+    }
     return reply.code(200).send({ accepted: true, spaceRef: space.externalId, updatedAt: new Date().toISOString() });
   });
 
