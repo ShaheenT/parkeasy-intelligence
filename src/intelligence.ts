@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { pool } from './db.js';
 import type { RecommendationInput } from './schemas.js';
+import { config } from './config.js';
 
 type SpaceRow = {
   external_id: string;
@@ -28,7 +29,18 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): num
 export async function recommendParking(input: RecommendationInput) {
   const arrival = input.arrivalTime ? new Date(input.arrivalTime) : new Date();
   const end = new Date(arrival.getTime() + input.durationMinutes * 60_000);
-  const freshnessMinutes = Number(process.env.INVENTORY_FRESHNESS_MINUTES ?? 15);
+  const freshnessMinutes = config.INVENTORY_FRESHNESS_MINUTES;
+  const latDelta = input.radiusKm / 111.045;
+  const lonDelta = Math.min(180, input.radiusKm / (111.045 * Math.max(Math.cos(input.destination.latitude * Math.PI / 180), 0.01)));
+  const west = input.destination.longitude - lonDelta;
+  const east = input.destination.longitude + lonDelta;
+  const longitudeClause = west < -180
+    ? '(longitude >= $7 OR longitude <= $8)'
+    : east > 180
+      ? '(longitude >= $7 OR longitude <= $8)'
+      : 'longitude BETWEEN $7 AND $8';
+  const westBound = west < -180 ? west + 360 : west;
+  const eastBound = east > 180 ? east - 360 : east;
 
   const result = await pool.query<SpaceRow>(
     `SELECT external_id, latitude, longitude, price_per_hour_zar, currency,
@@ -38,8 +50,12 @@ export async function recommendParking(input: RecommendationInput) {
         AND updated_at >= NOW() - ($1::int * INTERVAL '1 minute')
         AND (available_from IS NULL OR available_from <= $2)
         AND (available_until IS NULL OR available_until >= $3)
-        AND ($4::numeric IS NULL OR price_per_hour_zar <= $4)`,
-    [freshnessMinutes, arrival, end, input.maxPricePerHourZar ?? null]
+        AND ($4::numeric IS NULL OR price_per_hour_zar <= $4)
+        AND latitude BETWEEN $5 AND $6
+        AND ${longitudeClause}`,
+    [freshnessMinutes, arrival, end, input.maxPricePerHourZar ?? null,
+      Math.max(-90, input.destination.latitude - latDelta),
+      Math.min(90, input.destination.latitude + latDelta), westBound, eastBound]
   );
 
   const candidates = result.rows
