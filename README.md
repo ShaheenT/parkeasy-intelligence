@@ -74,6 +74,7 @@ curl -X PUT http://localhost:8080/v1/parking/spaces/space-001 \
     "longitude": 18.4201,
     "pricePerHourZar": 25,
     "status": "available",
+    "observedAt": "2026-11-24T10:00:00Z",
     "attributes": {"covered": true}
   }'
 ```
@@ -144,15 +145,14 @@ This repository now includes versioned, checksum-verified migrations, PostgreSQL
 
 ## Production hardening still required
 
-This is a deployable foundation, not a claim of production certification. Before production traffic:
-1. Configure managed PostgreSQL backups, point-in-time recovery, TLS and connection limits.
-2. Add database-backed integration tests and load/security testing.
-3. Add API key storage/rotation via a secrets manager and per-client scopes.
-4. Define event retention, deletion, consent and POPIA controls with a data-processing review.
-5. Establish snapshot delivery SLAs and stale-data alerting.
-6. Add metrics/tracing, alert routing and operational runbooks.
-7. Review CORS and rate limits for the actual server-to-server deployment.
-8. Validate the integration contract against the real ParkEasy schema and staging flows.
+Before production traffic, complete these environment-specific gates:
+1. Provision managed PostgreSQL with TLS, backups, point-in-time recovery and tested restore procedures.
+2. Store API keys and database credentials in the hosting secret manager; rotate keys and use separate credentials per environment.
+3. Define event retention, deletion, consent and POPIA controls with a data-processing review.
+4. Establish snapshot delivery SLAs and stale-data alerting.
+5. Add metrics/tracing, alert routing and operational runbooks.
+6. Run load, abuse and security testing against staging; confirm rate limiting across replicas or keep a single API replica until a shared rate-limit store is configured.
+7. Validate the read-only adapter contract against ParkEasy staging, including field mapping, deletion propagation and event minimisation.
 
 ## Versioning
 
