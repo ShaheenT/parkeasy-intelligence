@@ -15,7 +15,7 @@
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "keys:generate": "node scripts/generate-api-key.mjs",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "db:migrate": "node dist/scripts/migrate.js"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",
