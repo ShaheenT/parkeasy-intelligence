@@ -37,7 +37,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        "200": { description: Snapshot accepted }\n        "409": { description: Stale snapshot rejected }
+        "200": { description: Snapshot accepted }
+        "409": { description: Stale snapshot rejected }
         "400": { description: Invalid snapshot }
         "401": { description: Unauthorized }
   /v1/intelligence/parking/recommendations:
