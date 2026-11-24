@@ -98,15 +98,39 @@ export function buildApp() {
     return reply.code(200).send(response);
   });
 
+  app.setNotFoundHandler((request, reply) => {
+    return reply.code(404).send({
+      error: {
+        code: 'NOT_FOUND',
+        message: 'The requested resource was not found.',
+        requestId: request.id
+      }
+    });
+  });
+
   app.setErrorHandler((error, request, reply) => {
     request.log.error({ err: error }, 'Request failed');
-    const statusCode = typeof error.statusCode === 'number' &&
-      error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : 500;
-    const code = statusCode === 404 ? 'NOT_FOUND' :
-      statusCode === 400 ? 'BAD_REQUEST' : 'INTERNAL_ERROR';
-    const message = statusCode === 404 ? 'The requested resource was not found.' :
+
+    const statusCode =
+      typeof error === 'object' &&
+      error !== null &&
+      'statusCode' in error &&
+      typeof error.statusCode === 'number' &&
+      error.statusCode >= 400 &&
+      error.statusCode < 500
+        ? error.statusCode
+        : 500;
+
+    const code =
+      statusCode === 404 ? 'NOT_FOUND' :
+      statusCode === 400 ? 'BAD_REQUEST' :
+      'INTERNAL_ERROR';
+
+    const message =
+      statusCode === 404 ? 'The requested resource was not found.' :
       statusCode === 400 ? 'The request could not be processed.' :
       'An unexpected error occurred.';
+
     return reply.code(statusCode).send({
       error: { code, message, requestId: request.id }
     });
