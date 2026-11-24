@@ -25,8 +25,8 @@ paths:
     post:
       summary: Ingest a marketplace event
       responses:
-        "202": { description: Event accepted }
-        "400": { description: Invalid event }
+        "202": { description: Event accepted or idempotent duplicate }
+        "400": { description: Invalid event (eventId UUID is required) }
         "401": { description: Unauthorized }
   /v1/parking/spaces/{externalId}:
     put:
@@ -38,6 +38,7 @@ paths:
           schema: { type: string }
       responses:
         "200": { description: Snapshot accepted }
+        "409": { description: Stale snapshot rejected }
         "400": { description: Invalid snapshot }
         "401": { description: Unauthorized }
   /v1/intelligence/parking/recommendations:

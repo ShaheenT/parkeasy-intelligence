@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: parkeasy_intelligence
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
     ports:
       - "5433:5432"
     volumes:
@@ -15,20 +15,37 @@ services:
       timeout: 3s
       retries: 10
 
-  api:
+  migrate:
     build: .
+    command: ["node", "dist/scripts/migrate.js"]
     environment:
-      NODE_ENV: development
-      PORT: 8080
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/parkeasy_intelligence
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/parkeasy_intelligence
       DATABASE_SSL: "false"
-      PEI_API_KEYS: ${PEI_API_KEYS:?Set PEI_API_KEYS in .env}
-      CORS_ORIGINS: http://localhost:3000
-    ports:
-      - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/parkeasy_intelligence
+      DATABASE_SSL: "false"
+      PEI_API_KEYS: ${PEI_API_KEYS:?Set PEI_API_KEYS in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-120}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-1 minute}
+      INVENTORY_FRESHNESS_MINUTES: ${INVENTORY_FRESHNESS_MINUTES:-15}
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
 volumes:
   pei_pgdata:

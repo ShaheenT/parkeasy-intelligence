@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const eventSchema = z.object({
-  eventId: z.string().uuid().optional(),
+  eventId: z.string().uuid(),
   eventType: z.enum([
     'search_performed', 'listing_viewed', 'booking_created', 'booking_cancelled',
     'payment_succeeded', 'arrival_verified', 'departure_verified',
@@ -19,6 +19,7 @@ export const spaceSnapshotSchema = z.object({
   pricePerHourZar: z.number().nonnegative().max(100000),
   currency: z.literal('ZAR').default('ZAR'),
   status: z.enum(['available', 'unavailable', 'inactive']),
+  observedAt: z.string().datetime({ offset: true }).optional(),
   availableFrom: z.string().datetime({ offset: true }).optional(),
   availableUntil: z.string().datetime({ offset: true }).optional(),
   attributes: z.record(z.string(), z.unknown()).default({})

@@ -36,9 +36,10 @@ Set `DATABASE_URL` in `.env` to:
 postgresql://postgres:postgres@localhost:5433/parkeasy_intelligence
 ```
 
-Apply the schema and start the API:
+Build the service, apply versioned migrations, and start the API:
 
 ```bash
+npm run build
 npm run db:migrate
 npm run dev
 ```
@@ -73,6 +74,7 @@ curl -X PUT http://localhost:8080/v1/parking/spaces/space-001 \
     "longitude": 18.4201,
     "pricePerHourZar": 25,
     "status": "available",
+    "observedAt": "2026-11-24T10:00:00Z",
     "attributes": {"covered": true}
   }'
 ```
@@ -98,6 +100,7 @@ curl -X POST http://localhost:8080/v1/events \
   -H "content-type: application/json" \
   -H "x-api-key: $PEI_API_KEY" \
   -d '{
+    "eventId": "2d3b8b2a-7b44-4e5a-9a25-5b4c0e3f8a11",
     "eventType": "search_performed",
     "properties": {"surface": "marketplace"}
   }'
@@ -123,7 +126,7 @@ npm test
 npm run build
 ```
 
-The health and schema tests do not require a running PostgreSQL instance. Add database-backed integration tests against an ephemeral PostgreSQL service in CI before production release.
+The health and schema tests run without PostgreSQL. Database integration tests run when TEST_DATABASE_URL is set; CI provisions PostgreSQL 16, applies migrations, and executes the full test suite.
 
 ## Deployment
 
@@ -136,17 +139,20 @@ Deploy as a long-running Node.js service or container. Configure:
 
 Run `npm run db:migrate` as a controlled release step before deploying code that requires the new schema. Keep database credentials and API keys in the hosting provider's secret manager. Do not expose the API key in browser code; call this API from a ParkEasy server-side adapter.
 
+## Production deployment gates
+
+This repository now includes versioned, checksum-verified migrations, PostgreSQL-backed CI, and a multi-stage Docker image. A production release still requires a managed PostgreSQL instance, backup/PITR configuration, TLS, secret provisioning, monitoring/alerting, a data retention policy, load testing, and a verified staging integration. The local Compose credentials are for local development only.
+
 ## Production hardening still required
 
-This is a deployable foundation, not a claim of production certification. Before production traffic:
-1. Configure managed PostgreSQL backups, point-in-time recovery, TLS and connection limits.
-2. Add database-backed integration tests and load/security testing.
-3. Add API key storage/rotation via a secrets manager and per-client scopes.
-4. Define event retention, deletion, consent and POPIA controls with a data-processing review.
-5. Establish snapshot delivery SLAs and stale-data alerting.
-6. Add metrics/tracing, alert routing and operational runbooks.
-7. Review CORS and rate limits for the actual server-to-server deployment.
-8. Validate the integration contract against the real ParkEasy schema and staging flows.
+Before production traffic, complete these environment-specific gates:
+1. Provision managed PostgreSQL with TLS, backups, point-in-time recovery and tested restore procedures.
+2. Store API keys and database credentials in the hosting secret manager; rotate keys and use separate credentials per environment.
+3. Define event retention, deletion, consent and POPIA controls with a data-processing review.
+4. Establish snapshot delivery SLAs and stale-data alerting.
+5. Add metrics/tracing, alert routing and operational runbooks.
+6. Run load, abuse and security testing against staging; confirm rate limiting across replicas or keep a single API replica until a shared rate-limit store is configured.
+7. Validate the read-only adapter contract against ParkEasy staging, including field mapping, deletion propagation and event minimisation.
 
 ## Versioning
 
