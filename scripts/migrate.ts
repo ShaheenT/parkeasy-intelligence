@@ -33,7 +33,7 @@ try {
 
     const directory = join(process.cwd(), 'migrations');
     const files = (await readdir(directory))
-      .filter(file => /^\\d+_[a-z0-9_-]+\\.sql$/i.test(file))
+      .filter(file => /^\d+_[a-z0-9_-]+\.sql$/i.test(file))
       .sort();
 
     for (const file of files) {
