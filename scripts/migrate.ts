@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import pg from 'pg';
 
 const { Pool } = pg;
@@ -30,13 +31,13 @@ try {
       )
     `);
 
-    const directory = new URL('../migrations/', import.meta.url);
+    const directory = join(process.cwd(), 'migrations');
     const files = (await readdir(directory))
       .filter(file => /^\\d+_[a-z0-9_-]+\\.sql$/i.test(file))
       .sort();
 
     for (const file of files) {
-      const sql = await readFile(new URL(file, directory), 'utf8');
+      const sql = await readFile(join(directory, file), 'utf8');
       const checksum = createHash('sha256').update(sql).digest('hex');
       const existing = await client.query<{ checksum: string }>(
         'SELECT checksum FROM schema_migrations WHERE version = $1',
