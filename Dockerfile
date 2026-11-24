@@ -11,6 +11,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/migrations ./migrations
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
